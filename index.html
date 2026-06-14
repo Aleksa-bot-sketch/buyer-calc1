@@ -128,6 +128,12 @@
     color: var(--tg-theme-text-color, #1a1a1a);
   }
 
+  .result-card .value-rub {
+    font-size: 12px;
+    color: var(--tg-theme-hint-color, #888);
+    margin-top: 2px;
+  }
+
   .total-card {
     background: #1D9E75;
     border-radius: 12px;
@@ -146,6 +152,12 @@
     font-size: 28px;
     font-weight: 700;
     color: #ffffff;
+  }
+
+  .total-card .value-rub-total {
+    font-size: 16px;
+    color: #e3f7f0;
+    margin-top: 4px;
   }
 
   .breakdown {
@@ -219,6 +231,11 @@
     </div>
   </div>
 
+  <div class="field">
+    <label for="rate">Курс доллара (₽ за $1)</label>
+    <input type="number" id="rate" value="90" min="1" step="0.1">
+  </div>
+
   <hr class="divider">
 
   <div class="field">
@@ -254,24 +271,29 @@
     <div class="result-card">
       <div class="label">Цена товара</div>
       <div class="value" id="r-price">$150</div>
+      <div class="value-rub" id="r-price-rub">13 500 ₽</div>
     </div>
     <div class="result-card">
       <div class="label">Налог</div>
       <div class="value" id="r-tax">$12</div>
+      <div class="value-rub" id="r-tax-rub">1 080 ₽</div>
     </div>
     <div class="result-card">
       <div class="label">Комиссия</div>
       <div class="value" id="r-comm">$22</div>
+      <div class="value-rub" id="r-comm-rub">1 980 ₽</div>
     </div>
     <div class="result-card">
       <div class="label">Доставка</div>
       <div class="value" id="r-ship">$20</div>
+      <div class="value-rub" id="r-ship-rub">1 800 ₽</div>
     </div>
   </div>
 
   <div class="total-card">
     <div class="label">Итого для клиента</div>
     <div class="value" id="r-total">$204</div>
+    <div class="value-rub-total" id="r-total-rub">18 360 ₽</div>
   </div>
 
   <div class="breakdown" id="breakdown"></div>
@@ -283,6 +305,7 @@
     const taxInput = document.getElementById('tax');
     const weightInput = document.getElementById('weight');
     const shipInput = document.getElementById('ship');
+    const rateInput = document.getElementById('rate');
     const pctInput = document.getElementById('pct');
     const fixedInput = document.getElementById('fixedval');
     const minInput = document.getElementById('minval');
@@ -303,11 +326,17 @@
       return '$' + n.toFixed(2);
     }
 
+    function fmtRub(n, rate) {
+      const rub = n * rate;
+      return Math.round(rub).toLocaleString('ru-RU') + ' ₽';
+    }
+
     function calc() {
       const price = parseFloat(priceInput.value) || 0;
       const taxPct = parseFloat(taxInput.value);
       const weight = parseFloat(weightInput.value);
       const shipRate = parseFloat(shipInput.value);
+      const rate = parseFloat(rateInput.value) || 0;
       const commPct = parseFloat(pctInput.value);
       const fixedVal = parseFloat(fixedInput.value) || 0;
       const minVal = parseFloat(minInput.value) || 0;
@@ -339,18 +368,24 @@
       document.getElementById('r-ship').textContent = fmt(shipAmt);
       document.getElementById('r-total').textContent = fmt(total);
 
+      document.getElementById('r-price-rub').textContent = fmtRub(price, rate);
+      document.getElementById('r-tax-rub').textContent = fmtRub(taxAmt, rate);
+      document.getElementById('r-comm-rub').textContent = fmtRub(comm, rate);
+      document.getElementById('r-ship-rub').textContent = fmtRub(shipAmt, rate);
+      document.getElementById('r-total-rub').textContent = fmtRub(total, rate);
+
       document.getElementById('breakdown').innerHTML = `
         <div class="line"><span>Цена товара</span><span>${fmt(price)}</span></div>
         <div class="line"><span>Налог (${taxPct.toFixed(1)}%)</span><span>+ ${fmt(taxAmt)}</span></div>
         <div class="line"><span>Комиссия байера</span><span>+ ${fmt(comm)}</span></div>
         <div class="line"><span>Доставка (${weight.toFixed(1)} кг × $${shipRate})</span><span>+ ${fmt(shipAmt)}</span></div>
-        <div class="line bold"><span>Итого</span><span>${fmt(total)}</span></div>
+        <div class="line bold"><span>Итого</span><span>${fmt(total)} · ${fmtRub(total, rate)}</span></div>
       `;
 
-      return { price, taxAmt, comm, shipAmt, total };
+      return { price, taxAmt, comm, shipAmt, total, rate };
     }
 
-    [priceInput, taxInput, weightInput, shipInput, pctInput, fixedInput, minInput].forEach(el => {
+    [priceInput, taxInput, weightInput, shipInput, rateInput, pctInput, fixedInput, minInput].forEach(el => {
       el.addEventListener('input', calc);
     });
 
@@ -382,7 +417,7 @@
         `Налог: ${fmt(r.taxAmt)}\n` +
         `Комиссия: ${fmt(r.comm)}\n` +
         `Доставка: ${fmt(r.shipAmt)}\n` +
-        `Итого: ${fmt(r.total)}`;
+        `Итого: ${fmt(r.total)} (${fmtRub(r.total, r.rate)})`;
 
       if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.sendData(text);
