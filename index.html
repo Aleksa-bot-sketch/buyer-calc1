@@ -224,10 +224,10 @@
   </div>
 
   <div class="field">
-    <label>Доставка ($ за кг)</label>
+    <label>Доставка (₽ за кг)</label>
     <div class="slider-row">
-      <input type="range" id="ship" min="5" max="40" value="20" step="1">
-      <span class="slider-val" id="ship-out">$20</span>
+      <input type="range" id="ship" min="500" max="6000" value="2700" step="100">
+      <span class="slider-val" id="ship-out">2700 ₽</span>
     </div>
   </div>
 
@@ -343,7 +343,7 @@
 
       taxOut.textContent = taxPct.toFixed(1) + '%';
       weightOut.textContent = weight.toFixed(1) + ' кг';
-      shipOut.textContent = '$' + shipRate.toFixed(0);
+      shipOut.textContent = shipRate.toFixed(0) + ' ₽';
       pctOut.textContent = commPct.toFixed(0) + '%';
 
       const taxAmt = price * taxPct / 100;
@@ -359,7 +359,8 @@
         comm = Math.max(minVal, pctComm);
       }
 
-      const shipAmt = weight * shipRate;
+      const shipAmtRub = weight * shipRate;
+      const shipAmt = rate > 0 ? shipAmtRub / rate : 0;
       const total = priceWithTax + comm + shipAmt;
 
       document.getElementById('r-price').textContent = fmt(price);
@@ -371,14 +372,14 @@
       document.getElementById('r-price-rub').textContent = fmtRub(price, rate);
       document.getElementById('r-tax-rub').textContent = fmtRub(taxAmt, rate);
       document.getElementById('r-comm-rub').textContent = fmtRub(comm, rate);
-      document.getElementById('r-ship-rub').textContent = fmtRub(shipAmt, rate);
+      document.getElementById('r-ship-rub').textContent = Math.round(shipAmtRub).toLocaleString('ru-RU') + ' ₽';
       document.getElementById('r-total-rub').textContent = fmtRub(total, rate);
 
       document.getElementById('breakdown').innerHTML = `
         <div class="line"><span>Цена товара</span><span>${fmt(price)}</span></div>
         <div class="line"><span>Налог (${taxPct.toFixed(1)}%)</span><span>+ ${fmt(taxAmt)}</span></div>
         <div class="line"><span>Комиссия байера</span><span>+ ${fmt(comm)}</span></div>
-        <div class="line"><span>Доставка (${weight.toFixed(1)} кг × $${shipRate})</span><span>+ ${fmt(shipAmt)}</span></div>
+        <div class="line"><span>Доставка (${weight.toFixed(1)} кг × ${shipRate}₽)</span><span>+ ${Math.round(shipAmtRub).toLocaleString('ru-RU')} ₽</span></div>
         <div class="line bold"><span>Итого</span><span>${fmt(total)} · ${fmtRub(total, rate)}</span></div>
       `;
 
@@ -411,12 +412,13 @@
 
     document.getElementById('send-btn').addEventListener('click', () => {
       const r = calc();
+      const shipAmtRub = Math.round(r.shipAmt * r.rate).toLocaleString('ru-RU');
       const text =
         `Расчёт заказа:\n` +
         `Цена товара: ${fmt(r.price)}\n` +
         `Налог: ${fmt(r.taxAmt)}\n` +
         `Комиссия: ${fmt(r.comm)}\n` +
-        `Доставка: ${fmt(r.shipAmt)}\n` +
+        `Доставка: ${shipAmtRub} ₽\n` +
         `Итого: ${fmt(r.total)} (${fmtRub(r.total, r.rate)})`;
 
       if (window.Telegram && window.Telegram.WebApp) {
