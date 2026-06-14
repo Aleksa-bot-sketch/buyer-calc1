@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор стоимости заказа</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * {
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    padding: 16px;
+    background: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #1a1a1a);
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    color: var(--tg-theme-text-color, #1a1a1a);
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--tg-theme-hint-color, #888);
+    margin: 0 0 20px;
+  }
+
+  .field {
+    margin-bottom: 18px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 14px;
+    color: var(--tg-theme-hint-color, #888);
+    margin-bottom: 6px;
+  }
+
+  .field input[type="number"] {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    background: var(--tg-theme-secondary-bg-color, #f7f7f7);
+    color: var(--tg-theme-text-color, #1a1a1a);
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .slider-row input[type="range"] {
+    flex: 1;
+    height: 4px;
+    accent-color: #1D9E75;
+  }
+
+  .slider-val {
+    min-width: 50px;
+    text-align: right;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1D9E75;
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .mode-tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    border-radius: 10px;
+    background: var(--tg-theme-secondary-bg-color, #f7f7f7);
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    color: var(--tg-theme-text-color, #1a1a1a);
+  }
+
+  .mode-tab.active {
+    background: #e3f7f0;
+    border-color: #1D9E75;
+    color: #0F6E56;
+    font-weight: 600;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 20px 0;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .result-card {
+    background: var(--tg-theme-secondary-bg-color, #f7f7f7);
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .result-card .label {
+    font-size: 11px;
+    color: var(--tg-theme-hint-color, #888);
+    margin-bottom: 4px;
+  }
+
+  .result-card .value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--tg-theme-text-color, #1a1a1a);
+  }
+
+  .total-card {
+    background: #1D9E75;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .total-card .label {
+    font-size: 12px;
+    color: #e3f7f0;
+    margin-bottom: 4px;
+  }
+
+  .total-card .value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .breakdown {
+    font-size: 13px;
+    color: var(--tg-theme-hint-color, #888);
+  }
+
+  .breakdown .line {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .breakdown .line.bold {
+    color: var(--tg-theme-text-color, #1a1a1a);
+    font-weight: 700;
+    border-bottom: none;
+    padding-top: 10px;
+  }
+
+  .send-btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 8px;
+    background: #1D9E75;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .send-btn:active {
+    opacity: 0.85;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Калькулятор стоимости заказа</h1>
+  <p class="subtitle">Узнайте примерную итоговую цену товара с доставкой</p>
+
+  <div class="field">
+    <label for="price">Цена товара ($)</label>
+    <input type="number" id="price" value="150" min="1" step="1">
+  </div>
+
+  <div class="field">
+    <label>Налог (sales tax)</label>
+    <div class="slider-row">
+      <input type="range" id="tax" min="0" max="12" value="8" step="0.5">
+      <span class="slider-val" id="tax-out">8%</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Вес посылки (кг)</label>
+    <div class="slider-row">
+      <input type="range" id="weight" min="0.1" max="10" value="1" step="0.1">
+      <span class="slider-val" id="weight-out">1.0 кг</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Доставка ($ за кг)</label>
+    <div class="slider-row">
+      <input type="range" id="ship" min="5" max="40" value="20" step="1">
+      <span class="slider-val" id="ship-out">$20</span>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="field">
+    <label>Комиссия байера</label>
+    <div class="mode-tabs">
+      <div class="mode-tab active" data-mode="percent">% от суммы</div>
+      <div class="mode-tab" data-mode="fixed">Фикс. сумма</div>
+      <div class="mode-tab" data-mode="min">Минималка + %</div>
+    </div>
+  </div>
+
+  <div class="field" id="pct-field">
+    <label>Процент комиссии</label>
+    <div class="slider-row">
+      <input type="range" id="pct" min="5" max="30" value="15" step="1">
+      <span class="slider-val" id="pct-out">15%</span>
+    </div>
+  </div>
+
+  <div class="field" id="fixed-field" style="display:none">
+    <label>Фиксированная сумма ($)</label>
+    <input type="number" id="fixedval" value="20" min="1" step="1">
+  </div>
+
+  <div class="field" id="min-field" style="display:none">
+    <label>Минималка ($)</label>
+    <input type="number" id="minval" value="10" min="1" step="1">
+  </div>
+
+  <hr class="divider">
+
+  <div class="result-grid">
+    <div class="result-card">
+      <div class="label">Цена товара</div>
+      <div class="value" id="r-price">$150</div>
+    </div>
+    <div class="result-card">
+      <div class="label">Налог</div>
+      <div class="value" id="r-tax">$12</div>
+    </div>
+    <div class="result-card">
+      <div class="label">Комиссия</div>
+      <div class="value" id="r-comm">$22</div>
+    </div>
+    <div class="result-card">
+      <div class="label">Доставка</div>
+      <div class="value" id="r-ship">$20</div>
+    </div>
+  </div>
+
+  <div class="total-card">
+    <div class="label">Итого для клиента</div>
+    <div class="value" id="r-total">$204</div>
+  </div>
+
+  <div class="breakdown" id="breakdown"></div>
+
+  <button class="send-btn" id="send-btn">Отправить расчёт байеру</button>
+
+  <script>
+    const priceInput = document.getElementById('price');
+    const taxInput = document.getElementById('tax');
+    const weightInput = document.getElementById('weight');
+    const shipInput = document.getElementById('ship');
+    const pctInput = document.getElementById('pct');
+    const fixedInput = document.getElementById('fixedval');
+    const minInput = document.getElementById('minval');
+
+    const taxOut = document.getElementById('tax-out');
+    const weightOut = document.getElementById('weight-out');
+    const shipOut = document.getElementById('ship-out');
+    const pctOut = document.getElementById('pct-out');
+
+    const pctField = document.getElementById('pct-field');
+    const fixedField = document.getElementById('fixed-field');
+    const minField = document.getElementById('min-field');
+
+    const tabs = document.querySelectorAll('.mode-tab');
+    let mode = 'percent';
+
+    function fmt(n) {
+      return '$' + n.toFixed(2);
+    }
+
+    function calc() {
+      const price = parseFloat(priceInput.value) || 0;
+      const taxPct = parseFloat(taxInput.value);
+      const weight = parseFloat(weightInput.value);
+      const shipRate = parseFloat(shipInput.value);
+      const commPct = parseFloat(pctInput.value);
+      const fixedVal = parseFloat(fixedInput.value) || 0;
+      const minVal = parseFloat(minInput.value) || 0;
+
+      taxOut.textContent = taxPct.toFixed(1) + '%';
+      weightOut.textContent = weight.toFixed(1) + ' кг';
+      shipOut.textContent = '$' + shipRate.toFixed(0);
+      pctOut.textContent = commPct.toFixed(0) + '%';
+
+      const taxAmt = price * taxPct / 100;
+      const priceWithTax = price + taxAmt;
+
+      let comm = 0;
+      if (mode === 'percent') {
+        comm = priceWithTax * commPct / 100;
+      } else if (mode === 'fixed') {
+        comm = fixedVal;
+      } else {
+        const pctComm = priceWithTax * commPct / 100;
+        comm = Math.max(minVal, pctComm);
+      }
+
+      const shipAmt = weight * shipRate;
+      const total = priceWithTax + comm + shipAmt;
+
+      document.getElementById('r-price').textContent = fmt(price);
+      document.getElementById('r-tax').textContent = fmt(taxAmt);
+      document.getElementById('r-comm').textContent = fmt(comm);
+      document.getElementById('r-ship').textContent = fmt(shipAmt);
+      document.getElementById('r-total').textContent = fmt(total);
+
+      document.getElementById('breakdown').innerHTML = `
+        <div class="line"><span>Цена товара</span><span>${fmt(price)}</span></div>
+        <div class="line"><span>Налог (${taxPct.toFixed(1)}%)</span><span>+ ${fmt(taxAmt)}</span></div>
+        <div class="line"><span>Комиссия байера</span><span>+ ${fmt(comm)}</span></div>
+        <div class="line"><span>Доставка (${weight.toFixed(1)} кг × $${shipRate})</span><span>+ ${fmt(shipAmt)}</span></div>
+        <div class="line bold"><span>Итого</span><span>${fmt(total)}</span></div>
+      `;
+
+      return { price, taxAmt, comm, shipAmt, total };
+    }
+
+    [priceInput, taxInput, weightInput, shipInput, pctInput, fixedInput, minInput].forEach(el => {
+      el.addEventListener('input', calc);
+    });
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        mode = tab.dataset.mode;
+
+        pctField.style.display = (mode === 'fixed') ? 'none' : 'block';
+        fixedField.style.display = (mode === 'fixed') ? 'block' : 'none';
+        minField.style.display = (mode === 'min') ? 'block' : 'none';
+
+        calc();
+      });
+    });
+
+    // Telegram Mini App init
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+    }
+
+    document.getElementById('send-btn').addEventListener('click', () => {
+      const r = calc();
+      const text =
+        `Расчёт заказа:\n` +
+        `Цена товара: ${fmt(r.price)}\n` +
+        `Налог: ${fmt(r.taxAmt)}\n` +
+        `Комиссия: ${fmt(r.comm)}\n` +
+        `Доставка: ${fmt(r.shipAmt)}\n` +
+        `Итого: ${fmt(r.total)}`;
+
+      if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.sendData(text);
+      } else {
+        alert(text);
+      }
+    });
+
+    calc();
+  </script>
+
+</body>
+</html>
